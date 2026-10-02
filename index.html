@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ProTrade - Interactive Trading Platform</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- GSAP & Draggable Plugins -->
+  <script src="https://unpkg.com/gsap@3/dist/gsap.min.js"></script>
+  <script src="https://unpkg.com/gsap@3/dist/Draggable.min.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    :root {
+      --bg-color: #121417;
+      --bg-dash: #0b0e11;
+      --lamp-shade: #f5f0e6;
+      --lamp-base: #d1ccc2;
+      --glow-color: rgba(255, 214, 110, 0.25);
+      --accent-color: #d4a373;
+      --on: 0;
+      --transition: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    body {
+      min-height: 100vh;
+      background: var(--bg-color);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      overflow-x: hidden;
+      color: #eaeaea;
+    }
+
+    /* Lamp Glow Effect */
+    .lamp-glow::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 50% 35%, var(--glow-color), transparent 70%);
+      opacity: var(--on);
+      transition: opacity var(--transition);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* SVG Lamp styles */
+    .lamp-shade {
+      fill: var(--lamp-shade);
+      transition: fill var(--transition);
+    }
+    [data-on="true"] .lamp-shade {
+      fill: #ffffff;
+      filter: drop-shadow(0 0 35px rgba(255, 230, 150, 0.5));
+    }
+    .lamp-base { fill: var(--lamp-base); }
+    .inner-glow {
+      fill: #ffdb8a;
+      opacity: 0;
+      filter: blur(15px);
+      transition: opacity var(--transition);
+    }
+    [data-on="true"] .inner-glow { opacity: 0.7; }
+    .cord-line { stroke: #666; stroke-width: 2; }
+    .cord-bead { fill: var(--accent-color); }
+    .cord-hit { cursor: pointer; }
+
+    /* Custom Glassmorphism */
+    .glass-card {
+      background: rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .glass-input {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transition: all 0.3s ease;
+    }
+    .glass-input:focus {
+      border-color: var(--accent-color);
+      background: rgba(255, 255, 255, 0.1);
+      outline: none;
+    }
+
+    /* Gold Gradient Button */
+    .btn-gold {
+      background: linear-gradient(135deg, #bf953f, #fcf6ba, #b38728, #fcf6ba, #aa771c);
+      color: #121417;
+      font-weight: 700;
+      transition: all 0.3s ease;
+    }
+    .btn-gold:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(212, 163, 115, 0.4);
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
+
+    /* Custom Animations */
+    .login-form-container {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(30px);
+      transition: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .login-form-container.active {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    /* Orderbook Animation Rows */
+    @keyframes pulseGreen {
+      0% { background-color: rgba(34, 197, 94, 0.25); }
+      100% { background-color: transparent; }
+    }
+    @keyframes pulseRed {
+      0% { background-color: rgba(239, 68, 68, 0.25); }
+      100% { background-color: transparent; }
+    }
+    .flash-green { animation: pulseGreen 0.6s ease-out; }
+    .flash-red { animation: pulseRed 0.6s ease-out; }
+  </style>
+</head>
+<body data-on="false" class="lamp-glow relative">
+
+  <!-- 1. LOGIN SCREEN CONTAINER -->
+  <div id="loginView" class="min-h-screen flex flex-col items-center justify-center p-4 relative z-10 transition-opacity duration-700">
+    
+    <div class="flex flex-col md:flex-row items-center justify-center gap-8 md:gap-16 w-full max-w-4xl">
+      
+      <!-- Lamp SVG Container -->
+      <div class="lamp-wrapper w-64 h-80 relative flex justify-center">
+        <svg class="lamp-svg w-full h-full overflow-visible" viewBox="0 0 200 300" xmlns="http://www.w3.org/2000/svg">
+          <ellipse class="inner-glow" cx="100" cy="110" rx="60" ry="30" />
+          <rect class="lamp-base" x="92" y="100" width="16" height="160" rx="8" />
+          <rect class="lamp-base" x="60" y="250" width="80" height="12" rx="6" />
+
+          <!-- Interactive Cord -->
+          <g class="pull-cord">
+            <line class="cord-line" x1="130" y1="110" x2="130" y2="180" />
+            <circle class="cord-bead" cx="130" cy="190" r="6" />
+            <circle class="cord-hit" cx="130" cy="190" r="28" fill="transparent" />
+          </g>
+
+          <path class="lamp-shade" d="M30 110 C 30 50, 170 50, 170 110 C 170 125, 30 125, 30 110 Z" />
+        </svg>
+      </div>
+
+      <!-- Login Glass Box -->
+      <div class="login-form-container glass-card p-8 rounded-3xl w-full max-w-sm shadow-2xl relative">
+        <div class="flex items-center justify-center gap-2 mb-6">
+          <i data-lucide="candlestick-chart" class="w-8 h-8 text-[#d4a373]"></i>
+          <h2 class="text-2xl font-bold tracking-wide text-white">ProTrade</h2>
+        </div>
+
+        <p class="text-center text-gray-400 text-xs mb-6">Pull the lamp cord to light up the terminal</p>
+
+        <form id="loginForm" class="space-y-4" onsubmit="return handleLogin(event)">
+          <div>
+            <label class="block text-xs font-medium text-gray-300 mb-1 ml-1">Username / Email</label>
+            <input type="text" id="usernameInput" value="trader_pro" required placeholder="Enter username" class="w-full px-4 py-3 rounded-xl glass-input text-white text-sm placeholder-gray-500">
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-gray-300 mb-1 ml-1">Password</label>
+            <input type="password" value="••••••••" required placeholder="Enter password" class="w-full px-4 py-3 rounded-xl glass-input text-white text-sm placeholder-gray-500">
+          </div>
+
+          <div class="flex items-center justify-between text-xs text-gray-400 pt-1">
+            <label class="flex items-center cursor-pointer">
+              <input type="checkbox" checked class="rounded border-gray-700 bg-gray-900 text-[#d4a373] focus:ring-0 mr-2"> Remember me
+            </label>
+            <a href="#" class="hover:text-[#d4a373] transition">Forgot password?</a>
+          </div>
+
+          <button type="submit" class="w-full py-3.5 rounded-xl btn-gold text-sm uppercase tracking-wider mt-4 font-bold shadow-lg">
+            Sign In To Dashboard
+          </button>
+        </form>
+      </div>
+
+    </div>
+
+    <!-- Light Pull Helper Hint -->
+    <div id="pullHint" class="mt-8 text-xs text-amber-200/60 bg-amber-500/10 border border-amber-500/20 px-4 py-2 rounded-full flex items-center gap-2 animate-bounce">
+      <i data-lucide="hand" class="w-4 h-4"></i> Drag down the golden bulb cord to power on!
+    </div>
+  </div>
+
+  <!-- 2. TRADING DASHBOARD VIEW (Hidden initially) -->
+  <div id="dashboardView" class="hidden min-h-screen bg-[#0b0e11] text-gray-200 flex-col transition-all duration-700 opacity-0 scale-95">
+    
+    <!-- Top Navigation Header -->
+    <header class="bg-[#121417] border-b border-gray-800 px-4 py-2.5 flex items-center justify-between sticky top-0 z-40">
+      <div class="flex items-center gap-6">
+        <div class="flex items-center gap-2 cursor-pointer">
+          <div class="p-1.5 bg-[#d4a373]/10 border border-[#d4a373]/30 rounded-lg">
+            <i data-lucide="candlestick-chart" class="w-5 h-5 text-[#d4a373]"></i>
+          </div>
+          <span class="font-bold text-lg text-white tracking-wider">ProTrade</span>
+        </div>
+
+        <!-- Asset Switcher Dropdown -->
+        <div class="relative group hidden sm:block">
+          <button class="flex items-center gap-2 bg-gray-800/80 hover:bg-gray-800 px-3 py-1.5 rounded-lg border border-gray-700 text-sm font-semibold text-white transition">
+            <span id="currentAssetPair">BTC/USDT</span>
+            <span id="currentAssetPrice" class="text-green-400 font-mono">$64,280.50</span>
+            <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400"></i>
+          </button>
+          
+          <!-- Dropdown items -->
+          <div class="absolute left-0 top-full mt-1 w-48 bg-[#181c20] border border-gray-700 rounded-lg shadow-xl hidden group-hover:block z-50 p-1">
+            <div onclick="selectPair('BTC/USDT', 64280.50)" class="p-2 hover:bg-gray-800 rounded cursor-pointer flex justify-between text-xs">
+              <span class="font-bold text-white">BTC/USDT</span>
+              <span class="text-green-400 font-mono">$64,280.50</span>
+            </div>
+            <div onclick="selectPair('ETH/USDT', 3480.20)" class="p-2 hover:bg-gray-800 rounded cursor-pointer flex justify-between text-xs">
+              <span class="font-bold text-white">ETH/USDT</span>
+              <span class="text-green-400 font-mono">$3,480.20</span>
+            </div>
+            <div onclick="selectPair('TSLA', 242.10)" class="p-2 hover:bg-gray-800 rounded cursor-pointer flex justify-between text-xs">
+              <span class="font-bold text-white">TSLA</span>
+              <span class="text-red-400 font-mono">$242.10</span>
+            </div>
+            <div onclick="selectPair('AAPL', 224.30)" class="p-2 hover:bg-gray-800 rounded cursor-pointer flex justify-between text-xs">
+              <span class="font-bold text-white">AAPL</span>
+              <span class="text-green-400 font-mono">$224.30</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Navigation Links -->
+        <nav class="hidden md:flex items-center gap-1 text-xs font-medium text-gray-400">
+          <a href="#" class="px-3 py-1.5 rounded-lg bg-gray-800 text-white">Trade</a>
+          <a href="#" class="px-3 py-1.5 rounded-lg hover:text-white transition">Markets</a>
+          <a href="#" class="px-3 py-1.5 rounded-lg hover:text-white transition">Portfolio</a>
+          <a href="#" class="px-3 py-1.5 rounded-lg hover:text-white transition">Analytics</a>
+        </nav>
+      </div>
+
+      <!-- Right Header Actions & Profile -->
+      <div class="flex items-center gap-4">
+        <!-- Balance Display -->
+        <div class="text-right hidden sm:block">
+          <div class="text-[10px] text-gray-400 uppercase font-semibold">Total Balance</div>
+          <div id="userBalance" class="text-sm font-bold font-mono text-[#d4a373]">$24,850.50</div>
+        </div>
+
+        <!-- User Profile Dropdown / Sign Out Button -->
+        <div class="flex items-center gap-3 border-l border-gray-800 pl-4">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-600 to-yellow-300 flex items-center justify-center font-bold text-gray-900 text-xs shadow-inner">
+              <span id="userAvatarInitials">TP</span>
+            </div>
+            <span id="displayUsername" class="text-xs font-semibold text-white hidden lg:inline">trader_pro</span>
+          </div>
+
+          <button onclick="handleSignOut()" class="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-800 rounded-lg transition" title="Sign Out & Turn Lamp Off">
+            <i data-lucide="power" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Market Stats Ticker Bar -->
+    <div class="bg-[#121417]/80 border-b border-gray-800 px-4 py-2 flex items-center justify-between overflow-x-auto text-xs font-mono text-gray-400 gap-6">
+      <div class="flex items-center gap-6 whitespace-nowrap">
+        <div>24h High: <span id="statHigh" class="text-gray-200 font-semibold">$65,120.00</span></div>
+        <div>24h Low: <span id="statLow" class="text-gray-200 font-semibold">$63,800.00</span></div>
+        <div>24h Volume: <span id="statVol" class="text-gray-200 font-semibold">$1.42B</span></div>
+        <div>24h Change: <span id="statChange" class="text-green-400 font-semibold">+2.84%</span></div>
+      </div>
+      <div class="flex items-center gap-2 text-emerald-400 text-[11px] whitespace-nowrap">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Dynamic Market Engine Active
+      </div>
+    </div>
+
+    <!-- Main Grid Workspace -->
+    <main class="flex-1 p-2 sm:p-3 grid grid-cols-1 lg:grid-cols-12 gap-3">
+      
+      <!-- Left & Center: Chart + Positions (8 cols) -->
+      <div class="lg:col-span-8 flex flex-col gap-3">
+        
+        <!-- Live Interactive Canvas Chart -->
+        <div class="bg-[#121417] border border-gray-800 rounded-xl p-3 flex flex-col relative h-[380px]">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-bold text-white" id="chartSymbol">BTC/USDT</span>
+              <span class="text-xs bg-gray-800 text-gray-300 px-2 py-0.5 rounded">1m Realtime</span>
+            </div>
+            
+            <!-- Timeframe selector buttons -->
+            <div class="flex gap-1 bg-gray-900/80 p-0.5 rounded-lg text-xs font-medium text-gray-400">
+              <button class="px-2 py-0.5 rounded bg-gray-700 text-white">1m</button>
+              <button class="px-2 py-0.5 rounded hover:text-white">5m</button>
+              <button class="px-2 py-0.5 rounded hover:text-white">1H</button>
+              <button class="px-2 py-0.5 rounded hover:text-white">1D</button>
+            </div>
+          </div>
+
+          <!-- Chart Canvas Area -->
+          <div class="relative flex-1 w-full h-full overflow-hidden">
+            <canvas id="tradingChart" class="w-full h-full"></canvas>
+            
+            <!-- Price HUD Overlay -->
+            <div class="absolute top-2 left-2 bg-gray-900/80 border border-gray-800 p-2 rounded text-[11px] font-mono space-y-0.5 backdrop-blur">
+              <div>O: <span id="hudOpen" class="text-gray-300">64200.00</span> H: <span id="hudHigh" class="text-green-400">64310.00</span></div>
+              <div>L: <span id="hudLow" class="text-red-400">64180.00</span> C: <span id="hudClose" class="text-gray-300">64280.50</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Open Positions and Orders Table -->
+        <div class="bg-[#121417] border border-gray-800 rounded-xl p-3 flex-1 flex flex-col min-h-[220px]">
+          <div class="flex items-center justify-between mb-2 border-b border-gray-800 pb-2">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-gray-300 flex items-center gap-2">
+              <i data-lucide="layers" class="w-4 h-4 text-[#d4a373]"></i> Active Positions (<span id="posCount">1</span>)
+            </h3>
+            <span class="text-[11px] text-gray-400">Unrealized PnL: <span id="totalPnL" class="text-green-400 font-mono font-bold">+$124.50</span></span>
+          </div>
+
+          <div class="overflow-x-auto flex-1">
+            <table class="w-full text-left text-xs font-mono">
+              <thead class="text-[10px] text-gray-400 uppercase bg-gray-900/50 border-b border-gray-800">
+                <tr>
+                  <th class="p-2">Pair</th>
+                  <th class="p-2">Side</th>
+                  <th class="p-2">Amount</th>
+                  <th class="p-2">Entry Price</th>
+                  <th class="p-2">Mark Price</th>
+                  <th class="p-2">PnL</th>
+                  <th class="p-2 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody id="positionsTableBody" class="divide-y divide-gray-800/50 text-gray-300">
+                <!-- Dynamic positions inserted here -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right Column: Order Book + Buy/Sell Controls (4 cols) -->
+      <div class="lg:col-span-4 flex flex-col md:flex-row lg:flex-col gap-3">
+        
+        <!-- Live Order Book -->
+        <div class="bg-[#121417] border border-gray-800 rounded-xl p-3 flex-1 flex flex-col h-[280px]">
+          <div class="text-xs font-bold uppercase tracking-wider text-gray-300 mb-2 flex justify-between items-center">
+            <span>Order Book</span>
+            <span class="text-[10px] text-gray-500 font-normal">Spread: 0.10</span>
+          </div>
+
+          <div class="flex-1 grid grid-cols-2 gap-2 text-[11px] font-mono overflow-hidden">
+            <!-- Bids Column (Green) -->
+            <div>
+              <div class="flex justify-between text-gray-500 text-[10px] pb-1 border-b border-gray-800">
+                <span>Price</span>
+                <span>Qty</span>
+              </div>
+              <div id="bidsList" class="space-y-1 mt-1">
+                <!-- Dynamic Bids -->
+              </div>
+            </div>
+
+            <!-- Asks Column (Red) -->
+            <div>
+              <div class="flex justify-between text-gray-500 text-[10px] pb-1 border-b border-gray-800">
+                <span>Price</span>
+                <span>Qty</span>
+              </div>
+              <div id="asksList" class="space-y-1 mt-1">
+                <!-- Dynamic Asks -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Buy / Sell Order Placement Form -->
+        <div class="bg-[#121417] border border-gray-800 rounded-xl p-3 flex-1 flex flex-col">
+          <!-- Buy/Sell Tabs -->
+          <div class="grid grid-cols-2 gap-2 mb-3">
+            <button id="tabBuy" onclick="switchTradeTab('buy')" class="py-2 text-xs font-bold rounded-lg bg-emerald-600 text-white transition shadow">
+              BUY / LONG
+            </button>
+            <button id="tabSell" onclick="switchTradeTab('sell')" class="py-2 text-xs font-bold rounded-lg bg-gray-800 text-gray-400 hover:text-white transition">
+              SELL / SHORT
+            </button>
+          </div>
+
+          <!-- Order Type selector -->
+          <div class="flex justify-between items-center text-xs text-gray-400 mb-3">
+            <span>Order Type</span>
+            <select class="bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200 outline-none">
+              <option>Market</option>
+              <option>Limit</option>
+            </select>
+          </div>
+
+          <!-- Amount Input -->
+          <div class="space-y-3 flex-1">
+            <div>
+              <div class="flex justify-between text-xs text-gray-400 mb-1">
+                <span>Amount (<span id="tradeCryptoSymbol">BTC</span>)</span>
+                <span>Max: <span id="maxCryptoAmount" class="text-gray-200 font-mono">0.38</span></span>
+              </div>
+              <div class="relative">
+                <input type="number" id="orderAmountInput" value="0.05" step="0.01" oninput="updateOrderTotal()" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:border-[#d4a373] outline-none">
+              </div>
+            </div>
+
+            <!-- Preset percentage slider -->
+            <div class="grid grid-cols-4 gap-1 text-[10px] font-mono">
+              <button onclick="setAmountPercentage(0.25)" class="py-1 bg-gray-800 hover:bg-gray-700 rounded text-gray-300">25%</button>
+              <button onclick="setAmountPercentage(0.50)" class="py-1 bg-gray-800 hover:bg-gray-700 rounded text-gray-300">50%</button>
+              <button onclick="setAmountPercentage(0.75)" class="py-1 bg-gray-800 hover:bg-gray-700 rounded text-gray-300">75%</button>
+              <button onclick="setAmountPercentage(1.00)" class="py-1 bg-gray-800 hover:bg-gray-700 rounded text-gray-300">100%</button>
+            </div>
+
+            <!-- Total Estimated Price -->
+            <div class="bg-gray-900/60 p-2.5 rounded-lg border border-gray-800 space-y-1 text-xs">
+              <div class="flex justify-between text-gray-400">
+                <span>Est. Value:</span>
+                <span id="orderTotalValue" class="font-mono text-white font-bold">$3,214.02</span>
+              </div>
+              <div class="flex justify-between text-gray-400 text-[10px]">
+                <span>Trading Fee (0.05%):</span>
+                <span class="font-mono text-gray-300">$1.60</span>
+              </div>
+            </div>
+
+            <!-- Execution Button -->
+            <button id="executeOrderBtn" onclick="executeTrade()" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold text-white text-xs uppercase tracking-wider transition shadow-lg mt-2">
+              Execute Buy Order
+            </button>
+          </div>
+
+        </div>
+
+      </div>
+
+    </main>
+
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <script>
+    // Audio Effect Setup
+    const clickSound = new Audio("https://assets.codepen.io/605876/click.mp3");
+
+    // Global State
+    let isLampOn = false;
+    let userBalance = 24850.50;
+    let currentPair = "BTC/USDT";
+    let currentPrice = 64280.50;
+    let tradeSide = "buy"; // 'buy' or 'sell'
+
+    let positions = [
+      { id: 1, pair: 'BTC/USDT', side: 'LONG', amount: 0.1, entryPrice: 63035.00, markPrice: 64280.50 }
+    ];
+
+    // Initialize Lucide Icons
+    lucide.createIcons();
+
+    // Setup GSAP Draggable Cord
+    gsap.registerPlugin(Draggable);
+
+    const root = document.documentElement;
+    const body = document.body;
+    const loginFormContainer = document.querySelector(".login-form-container");
+    const cordBead = document.querySelector(".cord-bead");
+    const cordLine = document.querySelector(".cord-line");
+    const hitArea = document.querySelector(".cord-hit");
+
+    Draggable.create(hitArea, {
+      type: "y",
+      bounds: { minY: 0, maxY: 60 },
+      onDrag() {
+        gsap.set(cordBead, { y: this.y });
+        gsap.set(cordLine, { attr: { y2: 180 + this.y } });
+      },
+      onRelease() {
+        if (this.y > 25) {
+          toggleLamp();
+        }
+        gsap.to([cordBead, hitArea], { y: 0, duration: 0.5, ease: "back.out(2.5)" });
+        gsap.to(cordLine, { attr: { y2: 180 }, duration: 0.5, ease: "back.out(2.5)" });
+      }
+    });
+
+    function toggleLamp() {
+      isLampOn = !isLampOn;
+      try { clickSound.play(); } catch(e){}
+
+      body.setAttribute("data-on", isLampOn);
+      root.style.setProperty("--on", isLampOn ? 1 : 0);
+
+      const pullHint = document.getElementById("pullHint");
+
+      if (isLampOn) {
+        loginFormContainer.classList.add("active");
+        if(pullHint) pullHint.style.display = 'none';
+        gsap.to(body, { backgroundColor: "#1c1f24", duration: 0.6 });
+        showToast("Lamp turned ON. You can now log in.", "info");
+      } else {
+        loginFormContainer.classList.remove("active");
+        if(pullHint) pullHint.style.display = 'flex';
+        gsap.to(body, { backgroundColor: "#121417", duration: 0.6 });
+      }
+    }
+
+    // Login Workflow
+    function handleLogin(e) {
+      e.preventDefault();
+      const username = document.getElementById("usernameInput").value || "trader_pro";
+
+      document.getElementById("displayUsername").innerText = username;
+      document.getElementById("userAvatarInitials").innerText = username.substring(0,2).toUpperCase();
+
+      showToast(`Welcome back, ${username}! Loading terminal...`, "success");
+
+      // Smooth transition from Login to Dashboard
+      const loginView = document.getElementById("loginView");
+      const dashboardView = document.getElementById("dashboardView");
+
+      gsap.to(loginView, {
+        opacity: 0,
+        scale: 0.9,
+        duration: 0.5,
+        onComplete: () => {
+          loginView.style.display = "none";
+          dashboardView.classList.remove("hidden");
+          dashboardView.style.display = "flex";
+          
+          gsap.to(dashboardView, {
+            opacity: 1,
+            scale: 1,
+            duration: 0.6,
+            ease: "power2.out",
+            onComplete: () => {
+              initChart();
+              resizeCanvas();
+            }
+          });
+        }
+      });
+    }
+
+    // Sign Out Workflow
+    function handleSignOut() {
+      showToast("Signing out & powering down lamp...", "info");
+      const loginView = document.getElementById("loginView");
+      const dashboardView = document.getElementById("dashboardView");
+
+      gsap.to(dashboardView, {
+        opacity: 0,
+        scale: 0.95,
+        duration: 0.4,
+        onComplete: () => {
+          dashboardView.style.display = "none";
+          loginView.style.display = "flex";
+          gsap.to(loginView, { opacity: 1, scale: 1, duration: 0.5 });
+          
+          if(isLampOn) {
+            toggleLamp();
+          }
+        }
+      });
+    }
+
+    // Toast Alert Helper
+    function showToast(message, type = "info") {
+      const container = document.getElementById("toastContainer");
+      const toast = document.createElement("div");
+
+      const bg = type === "success" ? "bg-emerald-600" : type === "error" ? "bg-red-600" : "bg-gray-800 border border-gray-700";
+      toast.className = `${bg} text-white text-xs px-4 py-3 rounded-xl shadow-xl flex items-center gap-2 pointer-events-auto transition-all duration-300 transform translate-y-4 opacity-0`;
+      
+      toast.innerHTML = `
+        <i data-lucide="${type === 'success' ? 'check-circle' : 'info'}" class="w-4 h-4"></i>
+        <span>${message}</span>
+      `;
+
+      container.appendChild(toast);
+      lucide.createIcons();
+
+      requestAnimationFrame(() => {
+        toast.classList.remove("translate-y-4", "opacity-0");
+      });
+
+      setTimeout(() => {
+        toast.classList.add("opacity-0", "translate-y-2");
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    // Canvas Chart Logic
+    let chartCanvas, ctx;
+    let candleData = [];
+
+    function initChart() {
+      chartCanvas = document.getElementById("tradingChart");
+      if (!chartCanvas) return;
+      ctx = chartCanvas.getContext("2d");
+
+      // Generate Initial Synthetic Candlestick Data
+      let base = currentPrice;
+      candleData = [];
+      for (let i = 0; i < 40; i++) {
+        let open = base + (Math.random() - 0.5) * 40;
+        let close = open + (Math.random() - 0.48) * 50;
+        let high = Math.max(open, close) + Math.random() * 20;
+        let low = Math.min(open, close) - Math.random() * 20;
+        candleData.push({ open, high, low, close });
+        base = close;
+      }
+
+      window.addEventListener("resize", resizeCanvas);
+      resizeCanvas();
+      startMarketSimulation();
+    }
+
+    function resizeCanvas() {
+      if (!chartCanvas || !chartCanvas.parentElement) return;
+      chartCanvas.width = chartCanvas.parentElement.clientWidth;
+      chartCanvas.height = chartCanvas.parentElement.clientHeight;
+      drawChart();
+    }
+
+    function drawChart() {
+      if (!ctx || !chartCanvas) return;
+      const w = chartCanvas.width;
+      const h = chartCanvas.height;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Draw Grid Lines
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
+      ctx.lineWidth = 1;
+      for (let y = 0; y < h; y += 40) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+      }
+
+      if (candleData.length === 0) return;
+
+      // Find Min/Max Price for Scaling
+      let minP = Math.min(...candleData.map(d => d.low));
+      let maxP = Math.max(...candleData.map(d => d.high));
+      let range = (maxP - minP) || 1;
+
+      const candleWidth = (w - 60) / candleData.length;
+
+      candleData.forEach((d, i) => {
+        let x = i * candleWidth + 10;
+        let isGreen = d.close >= d.open;
+
+        let yOpen = h - ((d.open - minP) / range) * (h - 40) - 20;
+        let yClose = h - ((d.close - minP) / range) * (h - 40) - 20;
+        let yHigh = h - ((d.high - minP) / range) * (h - 40) - 20;
+        let yLow = h - ((d.low - minP) / range) * (h - 40) - 20;
+
+        ctx.strokeStyle = isGreen ? "#22c55e" : "#ef4444";
+        ctx.fillStyle = isGreen ? "#22c55e" : "#ef4444";
+
+        // Wick Line
+        ctx.beginPath();
+        ctx.moveTo(x + candleWidth / 2, yHigh);
+        ctx.lineTo(x + candleWidth / 2, yLow);
+        ctx.stroke();
+
+        // Candle Body
+        let bodyY = Math.min(yOpen, yClose);
+        let bodyH = Math.max(Math.abs(yClose - yOpen), 2);
+        ctx.fillRect(x + 2, bodyY, Math.max(candleWidth - 4, 2), bodyH);
+      });
+    }
+
+    // Dynamic Market Simulator
+    function startMarketSimulation() {
+      setInterval(() => {
+        if (!candleData.length) return;
+        let last = candleData[candleData.length - 1];
+        let delta = (Math.random() - 0.49) * (currentPrice * 0.001);
+        
+        last.close += delta;
+        if (last.close > last.high) last.high = last.close;
+        if (last.close < last.low) last.low = last.close;
+
+        currentPrice = last.close;
+
+        // Update UI Prices
+        document.getElementById("currentAssetPrice").innerText = `$${currentPrice.toFixed(2)}`;
+        document.getElementById("hudClose").innerText = currentPrice.toFixed(2);
+        document.getElementById("hudHigh").innerText = last.high.toFixed(2);
+        document.getElementById("hudLow").innerText = last.low.toFixed(2);
+
+        updatePositionsPnL();
+        updateOrderBook();
+        drawChart();
+      }, 800);
+    }
+
+    // Switch Asset Pair
+    function selectPair(pairName, basePrice) {
+      currentPair = pairName;
+      currentPrice = basePrice;
+
+      document.getElementById("currentAssetPair").innerText = pairName;
+      document.getElementById("chartSymbol").innerText = pairName;
+      document.getElementById("tradeCryptoSymbol").innerText = pairName.split('/')[0];
+      document.getElementById("currentAssetPrice").innerText = `$${basePrice.toFixed(2)}`;
+
+      initChart();
+      showToast(`Switched pair to ${pairName}`, "info");
+    }
+
+    // Update Order Book Dynamic Stream
+    function updateOrderBook() {
+      const bidsContainer = document.getElementById("bidsList");
+      const asksContainer = document.getElementById("asksList");
+
+      if (!bidsContainer || !asksContainer) return;
+
+      let bidsHTML = "";
+      let asksHTML = "";
+
+      for (let i = 0; i < 6; i++) {
+        let bidP = (currentPrice - (i + 1) * 2.5).toFixed(2);
+        let bidQ = (Math.random() * 0.8 + 0.05).toFixed(3);
+        bidsHTML += `
+          <div class="flex justify-between hover:bg-gray-800 p-0.5 rounded transition">
+            <span class="text-emerald-400 font-semibold">${bidP}</span>
+            <span class="text-gray-400">${bidQ}</span>
+          </div>`;
+
+        let askP = (currentPrice + (i + 1) * 2.5).toFixed(2);
+        let askQ = (Math.random() * 0.8 + 0.05).toFixed(3);
+        asksHTML += `
+          <div class="flex justify-between hover:bg-gray-800 p-0.5 rounded transition">
+            <span class="text-red-400 font-semibold">${askP}</span>
+            <span class="text-gray-400">${askQ}</span>
+          </div>`;
+      }
+
+      bidsContainer.innerHTML = bidsHTML;
+      asksContainer.innerHTML = asksHTML;
+    }
+
+    // Trading Panel Helpers
+    function switchTradeTab(side) {
+      tradeSide = side;
+      const buyBtn = document.getElementById("tabBuy");
+      const sellBtn = document.getElementById("tabSell");
+      const execBtn = document.getElementById("executeOrderBtn");
+
+      if (side === "buy") {
+        buyBtn.className = "py-2 text-xs font-bold rounded-lg bg-emerald-600 text-white transition shadow";
+        sellBtn.className = "py-2 text-xs font-bold rounded-lg bg-gray-800 text-gray-400 hover:text-white transition";
+        execBtn.className = "w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold text-white text-xs uppercase tracking-wider transition shadow-lg mt-2";
+        execBtn.innerText = "Execute Buy Order";
+      } else {
+        sellBtn.className = "py-2 text-xs font-bold rounded-lg bg-red-600 text-white transition shadow";
+        buyBtn.className = "py-2 text-xs font-bold rounded-lg bg-gray-800 text-gray-400 hover:text-white transition";
+        execBtn.className = "w-full py-3 rounded-xl bg-red-600 hover:bg-red-500 font-bold text-white text-xs uppercase tracking-wider transition shadow-lg mt-2";
+        execBtn.innerText = "Execute Sell Order";
+      }
+    }
+
+    function updateOrderTotal() {
+      const amount = parseFloat(document.getElementById("orderAmountInput").value) || 0;
+      const total = amount * currentPrice;
+      document.getElementById("orderTotalValue").innerText = `$${total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    }
+
+    function setAmountPercentage(pct) {
+      const maxAmt = (userBalance * pct) / currentPrice;
+      document.getElementById("orderAmountInput").value = maxAmt.toFixed(4);
+      updateOrderTotal();
+    }
+
+    // Execute Buy/Sell Order
+    function executeTrade() {
+      const amount = parseFloat(document.getElementById("orderAmountInput").value);
+      if (!amount || amount <= 0) {
+        showToast("Please enter a valid order amount", "error");
+        return;
+      }
+
+      const totalCost = amount * currentPrice;
+      if (tradeSide === "buy" && totalCost > userBalance) {
+        showToast("Insufficient USD balance", "error");
+        return;
+      }
+
+      if (tradeSide === "buy") {
+        userBalance -= totalCost;
+      } else {
+        userBalance += totalCost;
+      }
+
+      document.getElementById("userBalance").innerText = `$${userBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+      // Create new position entry
+      positions.push({
+        id: Date.now(),
+        pair: currentPair,
+        side: tradeSide === "buy" ? "LONG" : "SHORT",
+        amount: amount,
+        entryPrice: currentPrice,
+        markPrice: currentPrice
+      });
+
+      renderPositions();
+      showToast(`${tradeSide.toUpperCase()} order for ${amount} ${currentPair.split('/')[0]} executed!`, "success");
+    }
+
+    // Render & Update Positions
+    function renderPositions() {
+      const tbody = document.getElementById("positionsTableBody");
+      document.getElementById("posCount").innerText = positions.length;
+
+      if (!tbody) return;
+
+      if (positions.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-gray-500">No active open positions</td></tr>`;
+        document.getElementById("totalPnL").innerText = "$0.00";
+        return;
+      }
+
+      let totalPnLVal = 0;
+      let rowsHTML = "";
+
+      positions.forEach(pos => {
+        let diff = (currentPrice - pos.entryPrice) * pos.amount;
+        if (pos.side === "SHORT") diff = -diff;
+        totalPnLVal += diff;
+
+        const isProfit = diff >= 0;
+        const pnlFormatted = `${isProfit ? '+' : ''}$${diff.toFixed(2)}`;
+
+        rowsHTML += `
+          <tr class="hover:bg-gray-900/60 transition">
+            <td class="p-2 font-bold text-white">${pos.pair}</td>
+            <td class="p-2 font-bold ${pos.side === 'LONG' ? 'text-emerald-400' : 'text-red-400'}">${pos.side}</td>
+            <td class="p-2">${pos.amount}</td>
+            <td class="p-2">$${pos.entryPrice.toFixed(2)}</td>
+            <td class="p-2">$${currentPrice.toFixed(2)}</td>
+            <td class="p-2 font-bold ${isProfit ? 'text-emerald-400' : 'text-red-400'}">${pnlFormatted}</td>
+            <td class="p-2 text-right">
+              <button onclick="closePosition(${pos.id})" class="px-2 py-1 bg-gray-800 hover:bg-red-500/20 hover:text-red-400 border border-gray-700 rounded text-[10px] transition">
+                Close
+              </button>
+            </td>
+          </tr>
+        `;
+      });
+
+      tbody.innerHTML = rowsHTML;
+
+      const totalPnLElem = document.getElementById("totalPnL");
+      totalPnLElem.innerText = `${totalPnLVal >= 0 ? '+' : ''}$${totalPnLVal.toFixed(2)}`;
+      totalPnLElem.className = `font-mono font-bold ${totalPnLVal >= 0 ? 'text-green-400' : 'text-red-400'}`;
+    }
+
+    function updatePositionsPnL() {
+      if (positions.length > 0) {
+        renderPositions();
+      }
+    }
+
+    function closePosition(id) {
+      const posIndex = positions.findIndex(p => p.id === id);
+      if (posIndex > -1) {
+        const pos = positions[posIndex];
+        let diff = (currentPrice - pos.entryPrice) * pos.amount;
+        if (pos.side === "SHORT") diff = -diff;
+
+        userBalance += (pos.amount * currentPrice) + diff;
+        document.getElementById("userBalance").innerText = `$${userBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+        positions.splice(posIndex, 1);
+        renderPositions();
+        showToast("Position closed successfully", "info");
+      }
+    }
+
+    // Initial load setup
+    window.onload = function () {
+      updateOrderTotal();
+      renderPositions();
+    };
+  </script>
+</body>
+</html>
