@@ -8,7 +8,7 @@
 ---
 
 ## 📋 Mundarija
-- [Loyiha haqida](#loyiha-haqida)
+- [Loyiha haqida](#Trade for begginer)
 - [Asosiy Xususiyatlar](#asosiy-xususiyatlar)
 - [Texnologiyalar (Tech Stack)](#texnologiyalar-tech-stack)
 - [O'rnatish va Ishga tushirish](#ornatish-va-ishga-tushirish)
